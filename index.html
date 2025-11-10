@@ -199,6 +199,53 @@
             border-color: var(--primary-color);
         }
         
+        /* Pagination Styles */
+        .pagination-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 20px;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        
+        .pagination-info {
+            color: #6c757d;
+            font-size: 0.9rem;
+        }
+        
+        .pagination-controls {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .page-btn {
+            padding: 6px 12px;
+            border: 1px solid #dee2e6;
+            background: white;
+            color: var(--secondary-color);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .page-btn:hover {
+            background: #e9ecef;
+        }
+        
+        .page-btn.active {
+            background: var(--primary-color);
+            color: white;
+            border-color: var(--primary-color);
+        }
+        
+        .page-btn:disabled {
+            background: #f8f9fa;
+            color: #6c757d;
+            cursor: not-allowed;
+        }
+        
         @media (max-width: 768px) {
             .hero-section {
                 padding: 40px 0;
@@ -217,6 +264,11 @@
                 top: 0;
                 right: 0;
                 margin-bottom: 10px;
+            }
+            
+            .pagination-container {
+                flex-direction: column;
+                gap: 15px;
             }
         }
     </style>
@@ -279,6 +331,12 @@
                         
                         <!-- Song List -->
                         <div id="songList"></div>
+                        
+                        <!-- Pagination -->
+                        <div id="paginationContainer" class="pagination-container" style="display: none;">
+                            <div id="paginationInfo" class="pagination-info"></div>
+                            <div id="paginationControls" class="pagination-controls"></div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -418,6 +476,8 @@
         // =============================================
         let songs = [];
         let currentSongs = [];
+        let currentPage = 1;
+        const songsPerPage = 10; // Jumlah lagu per halaman
 
         // =============================================
         // ELEMEN DOM
@@ -429,6 +489,9 @@
         const copyNotification = document.getElementById('copyNotification');
         const connectionStatus = document.getElementById('connectionStatus');
         const loadingSpinner = document.getElementById('loadingSpinner');
+        const paginationContainer = document.getElementById('paginationContainer');
+        const paginationInfo = document.getElementById('paginationInfo');
+        const paginationControls = document.getElementById('paginationControls');
 
         // Modal elements
         const tambahLaguModal = new bootstrap.Modal(document.getElementById('tambah-lagu'));
@@ -581,6 +644,7 @@
         function showLoading() {
             loadingSpinner.style.display = 'block';
             songList.style.display = 'none';
+            paginationContainer.style.display = 'none';
         }
 
         function hideLoading() {
@@ -588,10 +652,32 @@
             songList.style.display = 'block';
         }
 
-        // Render daftar lagu
+        // Render daftar lagu dengan pagination
         function renderSongList() {
-            const songsToRender = currentSongs;
+            const totalSongs = currentSongs.length;
+            const totalPages = Math.ceil(totalSongs / songsPerPage);
             
+            // Reset ke halaman 1 jika currentPage melebihi totalPages
+            if (currentPage > totalPages && totalPages > 0) {
+                currentPage = totalPages;
+            } else if (totalPages === 0) {
+                currentPage = 1;
+            }
+            
+            // Hitung indeks awal dan akhir untuk lagu yang akan ditampilkan
+            const startIndex = (currentPage - 1) * songsPerPage;
+            const endIndex = Math.min(startIndex + songsPerPage, totalSongs);
+            const songsToRender = currentSongs.slice(startIndex, endIndex);
+            
+            // Tampilkan/hide pagination berdasarkan jumlah lagu
+            if (totalSongs > songsPerPage) {
+                paginationContainer.style.display = 'flex';
+                renderPagination(totalSongs, totalPages);
+            } else {
+                paginationContainer.style.display = 'none';
+            }
+            
+            // Render daftar lagu
             if (songsToRender.length === 0) {
                 songList.innerHTML = `
                     <div class="empty-state">
@@ -635,9 +721,83 @@
             `).join('');
         }
 
+        // Render pagination controls
+        function renderPagination(totalSongs, totalPages) {
+            // Update info pagination
+            const startIndex = (currentPage - 1) * songsPerPage + 1;
+            const endIndex = Math.min(currentPage * songsPerPage, totalSongs);
+            paginationInfo.textContent = `Menampilkan ${startIndex}-${endIndex} dari ${totalSongs} lagu`;
+            
+            // Render tombol pagination
+            let paginationHTML = '';
+            
+            // Tombol Previous
+            paginationHTML += `
+                <button class="page-btn" onclick="goToPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+            `;
+            
+            // Tombol halaman
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            
+            // Adjust jika kita di akhir
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            // Tombol halaman pertama
+            if (startPage > 1) {
+                paginationHTML += `
+                    <button class="page-btn" onclick="goToPage(1)">1</button>
+                    ${startPage > 2 ? '<span class="page-btn" style="border: none; background: transparent;">...</span>' : ''}
+                `;
+            }
+            
+            // Tombol halaman
+            for (let i = startPage; i <= endPage; i++) {
+                paginationHTML += `
+                    <button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goToPage(${i})">${i}</button>
+                `;
+            }
+            
+            // Tombol halaman terakhir
+            if (endPage < totalPages) {
+                paginationHTML += `
+                    ${endPage < totalPages - 1 ? '<span class="page-btn" style="border: none; background: transparent;">...</span>' : ''}
+                    <button class="page-btn" onclick="goToPage(${totalPages})">${totalPages}</button>
+                `;
+            }
+            
+            // Tombol Next
+            paginationHTML += `
+                <button class="page-btn" onclick="goToPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+            `;
+            
+            paginationControls.innerHTML = paginationHTML;
+        }
+
+        // Navigasi ke halaman tertentu
+        function goToPage(page) {
+            const totalPages = Math.ceil(currentSongs.length / songsPerPage);
+            
+            if (page < 1 || page > totalPages) return;
+            
+            currentPage = page;
+            renderSongList();
+            
+            // Scroll ke atas daftar lagu
+            songList.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+
         // Filter lagu berdasarkan pencarian
         function filterSongs() {
             const searchTerm = searchInput.value.toLowerCase();
+            currentPage = 1; // Reset ke halaman 1 saat pencarian
             
             if (!searchTerm) {
                 currentSongs = [...songs];
@@ -660,6 +820,7 @@
         // Clear search
         function clearSearch() {
             searchInput.value = '';
+            currentPage = 1; // Reset ke halaman 1
             currentSongs = [...songs];
             renderSongList();
         }
