@@ -455,12 +455,12 @@
             try {
                 // Test connection
                 await db.collection('songs').limit(1).get();
-                connectionStatus.textContent = "TERHUBUNG KE DATABASE ONLINE";
+                connectionStatus.textContent = "TERHUBUNG";
                 connectionStatus.className = "status-online";
                 await loadSongsFromFirebase();
             } catch (error) {
                 console.error("Error connecting to Firebase:", error);
-                connectionStatus.textContent = "GAGAL TERHUBUNG - DATA LOKAL";
+                connectionStatus.textContent = "GAGAL TERHUBUNG";
                 connectionStatus.className = "status-offline";
                 loadFromLocalStorage();
             }
